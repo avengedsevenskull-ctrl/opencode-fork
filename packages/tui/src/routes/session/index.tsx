@@ -2283,6 +2283,8 @@ function Task(props: ToolProps) {
       content.push(`↳ ${formatCompletedSubagentDetail(tools().length, Locale.duration(duration()))}`)
     }
 
+    if (sessionID()) content.push(`# ${sessionID()}`)
+
     return content.join("\n")
   })
 

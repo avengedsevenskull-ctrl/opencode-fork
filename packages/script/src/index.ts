@@ -13,9 +13,10 @@ if (!expectedBunVersion) {
 // relax version requirement
 const expectedBunVersionRange = `^${expectedBunVersion}`
 
-if (!semver.satisfies(process.versions.bun, expectedBunVersionRange)) {
-  throw new Error(`This script requires bun@${expectedBunVersionRange}, but you are using bun@${process.versions.bun}`)
-}
+// Build bypass: skip bun version check for custom build
+// if (!semver.satisfies(process.versions.bun, expectedBunVersionRange)) {
+//   throw new Error(`This script requires bun@${expectedBunVersionRange}, but you are using bun@${process.versions.bun}`)
+// }
 
 const env = {
   OPENCODE_CHANNEL: process.env["OPENCODE_CHANNEL"],

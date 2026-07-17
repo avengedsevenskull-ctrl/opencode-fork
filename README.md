@@ -43,6 +43,32 @@
 
 ---
 
+## Fork
+
+This is a minimal fork of [anomalyco/opencode](https://github.com/anomalyco/opencode) on **v1.18.3** with two patches:
+
+### 1. `/sessions` roots filter
+
+Upstream `listSessions()` fetches the top 100 sessions without a `roots` filter, so deep subagent sessions crowd out root sessions in the `/sessions` list. One-line fix: `roots: true` added to the list query.
+
+**File:** `packages/tui/src/context/sync.tsx`
+
+### 2. Session ID in subagent spawn messages
+
+Every time an agent spawns a subagent, the session ID (e.g. `ses_0a4a6bc82ffefURNfoiu5Dkjj2`) is now appended as a footnote to the spawn message in the TUI. This lets you re-enter aborted or failed subagent sessions by copying the ID.
+
+**File:** `packages/tui/src/routes/session/index.tsx`
+
+```text
+General Task — Deep dive into API
+↳ 17 toolcalls · 24m 26s
+# ses_0a4a6bc82ffefURNfoiu5Dkjj2
+```
+
+The upstream v1.15.x Worker crash regression is fixed in this release.
+
+---
+
 ### Installation
 
 ```bash
