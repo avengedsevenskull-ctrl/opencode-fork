@@ -164,8 +164,10 @@ export function Prompt(props: PromptProps) {
   const history = usePromptHistory()
   const stash = usePromptStash()
   const keymap = useOpencodeKeymap()
+  const [hover, setHover] = createSignal<string | null>(null)
   const agentShortcut = useCommandShortcut("agent.cycle")
   const paletteShortcut = useCommandShortcut("command.palette.show")
+  const gearShortcut = useCommandShortcut("agent-tui.open")
   const renderer = useRenderer()
   const exit = useExit()
   const dimensions = useTerminalDimensions()
@@ -1649,8 +1651,18 @@ export function Prompt(props: PromptProps) {
               )}
             </Match>
           </Switch>
-          <Show when={status().type !== "retry"}>
-            <box gap={2} flexDirection="row">
+              <Show when={status().type !== "retry"}>
+                <box gap={2} flexDirection="row">
+                  <box
+                    onMouseOver={() => setHover("gear")}
+                    onMouseOut={() => setHover(null)}
+                    onMouseUp={() => keymap.dispatchCommand("agent-tui.open")}
+                    backgroundColor={hover() === "gear" ? theme.backgroundElement : "transparent"}
+                  >
+                    <text fg={theme.text}>
+                      ⚙ <span style={{ fg: theme.textMuted }}>{gearShortcut()}</span>
+                    </text>
+                  </box>
               <Show when={editorContextLabelState() !== "none" ? editorFileLabelDisplay() : undefined}>
                 {(file) => (
                   <text fg={editorContextLabelState() === "pending" ? theme.secondary : theme.textMuted}>{file()}</text>

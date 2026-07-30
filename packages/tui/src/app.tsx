@@ -135,9 +135,10 @@ const appBindingCommands = [
   "app.toggle.animations",
   "app.toggle.file_context",
   "app.toggle.diffwrap",
-  "app.toggle.paste_summary",
-  "app.toggle.session_directory_filter",
-] as const
+   "app.toggle.paste_summary",
+   "app.toggle.session_directory_filter",
+   "agent-tui.open",
+ ] as const
 
 export type TuiInput = {
   url: string
@@ -699,6 +700,18 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         hidden: true,
         run: () => {
           local.agent.move(1)
+        },
+      },
+      {
+        name: "agent-tui.open",
+        title: "Agent Config",
+        category: "Tools",
+        slashName: "agent-tui",
+        run: () => {
+          Bun.spawn(["opencode-agent-tui"], {
+            cwd: process.env.HOME + "/.config/opencode",
+            stdio: ["inherit", "inherit", "inherit"],
+          })
         },
       },
       {
