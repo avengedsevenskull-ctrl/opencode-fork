@@ -709,8 +709,8 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         slashName: "agent-tui",
         run: () => {
           const cwd = process.env.HOME + "/.config/opencode"
-          // Wrap command so terminal stays open on error
-          const wrapped = `which opencode-agent-tui >/dev/null 2>&1 && opencode-agent-tui; EC=$?; if [ $EC -ne 0 ]; then echo; echo "Exit code: $EC"; read -p 'Press enter to close...'; fi`
+          // Keep terminal open on close so user can read any errors
+          const wrapped = `which opencode-agent-tui >/dev/null 2>&1 && opencode-agent-tui 2>&1; echo; echo "Exit code: $?"; read -p 'Press enter to close...'`
 
           if (process.env.KITTY_WINDOW_ID) {
             Bun.spawn(["kitty", "@", "launch", "--cwd", cwd, "--", "bash", "-c", wrapped])
