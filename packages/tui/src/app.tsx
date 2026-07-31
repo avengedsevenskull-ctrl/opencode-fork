@@ -708,10 +708,34 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         category: "Tools",
         slashName: "agent-tui",
         run: () => {
-          Bun.spawn(["opencode-agent-tui"], {
-            cwd: process.env.HOME + "/.config/opencode",
-            stdio: ["inherit", "inherit", "inherit"],
-          })
+          const cmd = "opencode-agent-tui"
+          const cwd = process.env.HOME + "/.config/opencode"
+
+          if (process.env.KITTY_WINDOW_ID) {
+            Bun.spawn(["kitty", "@", "launch", "--cwd", cwd, cmd])
+          } else if (process.env.GHOSTTY || (process.env.TERM ?? "").includes("ghostty")) {
+            Bun.spawn(["ghostty", "-e", "bash", "-c", `cd ${cwd} && ${cmd}`])
+          } else if (process.env.TMUX) {
+            Bun.spawn(["tmux", "split-window", "-c", cwd, cmd])
+          } else {
+            const terminals = ["x-terminal-emulator", "kitty", "ghostty", "alacritty", "gnome-terminal", "konsole", "xfce4-terminal", "xterm"]
+            let launched = false
+            for (const term of terminals) {
+              try {
+                Bun.spawnSync(["which", term])
+                if (term === "alacritty") {
+                  Bun.spawn(["alacritty", "-e", "bash", "-c", `cd ${cwd} && ${cmd}`])
+                } else {
+                  Bun.spawn([term, "-e", "bash", "-c", `cd ${cwd} && ${cmd}`])
+                }
+                launched = true
+                break
+              } catch { continue }
+            }
+            if (!launched) {
+              Bun.spawn(["bash", "-c", `${cmd}`], { cwd, stdio: ["inherit", "inherit", "inherit"] })
+            }
+          }
         },
       },
       {
