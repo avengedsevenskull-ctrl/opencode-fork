@@ -43,6 +43,28 @@
 
 ---
 
+## Fork
+
+This is a minimal fork of [anomalyco/opencode](https://github.com/anomalyco/opencode), rebased on **v2.0.12**. It is not affiliated with or endorsed by the OpenCode team.
+
+### Custom patches
+
+1. **`agent-tui` gear icon** — a ⚙ entry in the prompt footer, plus an `Agent config` palette command and `/agent-tui` slash command, launches the external [`opencode-agent-tui`](./opencode-agent-tui) agent-configuration editor in a terminal. The launch is terminal-aware (kitty, ghostty, tmux, alacritty, and common fallbacks), and the terminal is kept open so errors stay readable.
+
+   **Files:** `packages/tui/src/feature-plugins/prompt/agent-tui.tsx`, `packages/tui/src/plugin/builtins.ts`
+
+2. **Session ID in subagent messages** — the child session ID is appended as a `# ses_…` footnote to every subagent spawn message, so aborted or failed subagent sessions can be re-entered by copying the ID.
+
+   **File:** `packages/tui/src/routes/session/index.tsx`
+
+The v1 fork's `/sessions` roots filter is no longer needed: v2 already lists sessions with `parentID: null`.
+
+### Building
+
+v2 builds the `opencode` binary from `packages/cli` (`packages/opencode` no longer exists). Build with `bun run --cwd packages/cli build --single --baseline` and install the resulting `packages/cli/dist/cli-linux-x64-baseline/bin/opencode`.
+
+---
+
 ### Installation
 
 ```bash
