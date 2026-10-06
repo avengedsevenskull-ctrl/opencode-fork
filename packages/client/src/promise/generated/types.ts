@@ -258,7 +258,7 @@ export type PermissionSource = { type: "tool"; messageID: string; id: string }
 
 export type PermissionSavedID = string
 
-export type CommandInfo = { name: string; description?: string }
+export type CommandInfo = { name: string; description?: string; arguments?: Array<string> }
 
 export type RpcOutput = { output?: any }
 
@@ -2273,6 +2273,7 @@ export type ConfigEntry =
             model?: string | { providerID: string; model: string; variant?: string }
             subagent?: boolean
             subtask?: boolean
+            arguments?: Array<string>
           }
         }
         instructions?: Array<string>

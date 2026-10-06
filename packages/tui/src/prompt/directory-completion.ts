@@ -2,6 +2,7 @@ import type { KeymapCommand } from "@opencode/plugin/tui/context"
 import type { OpenCodeClient } from "@opencode/client"
 import { measureEditText, type WidthMethod } from "@opentui/core"
 import path from "path"
+import { promptOffsetIndex } from "./display"
 import { parseSlashHead } from "./parse"
 
 export async function directoryAutocomplete(
@@ -47,6 +48,29 @@ export function slashArgumentAutocomplete(
   return {
     type,
     index: measureEditText(beforeCursor.slice(0, head.end + 1), { widthMethod }),
+  }
+}
+
+export function serverArgumentAutocomplete(
+  value: string,
+  offset: number,
+  widthMethod: WidthMethod,
+  commands: readonly { readonly name: string; readonly arguments?: ReadonlyArray<string> }[],
+) {
+  const beforeCursor = value.slice(0, promptOffsetIndex(value, offset, widthMethod))
+  const head = parseSlashHead(beforeCursor, /\s/)
+  if (!head || head.end === beforeCursor.length) return
+  if (/\s/.test(head.arguments)) return
+
+  const command = commands.find((command) => command.name === head.name && command.arguments?.length)
+  if (!command) return
+
+  const query = head.arguments.toLowerCase()
+  const values = (command.arguments ?? []).filter((item) => item.toLowerCase().startsWith(query))
+  if (values.length === 1 && values[0]?.toLowerCase() === query) return
+  return {
+    index: measureEditText(beforeCursor.slice(0, head.end + 1), { widthMethod }),
+    values,
   }
 }
 

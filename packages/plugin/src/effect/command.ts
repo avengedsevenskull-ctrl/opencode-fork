@@ -14,6 +14,7 @@ export interface CommandInvocation {
 export interface CommandDefinition {
   readonly name: string
   readonly description?: string
+  readonly arguments?: ReadonlyArray<string>
   readonly execute: (input: CommandInvocation) => Effect.Effect<void, unknown>
 }
 

@@ -11,4 +11,7 @@ export class Info extends Schema.Class<Info>("Config.Command")({
   model: ConfigModel.Selection.pipe(optional),
   subagent: Schema.Boolean.pipe(optional),
   subtask: Schema.Boolean.annotate({ description: "Deprecated alias for subagent." }).pipe(optional),
+  arguments: Schema.Array(Schema.String)
+    .annotate({ description: "Values offered when completing this command's argument." })
+    .pipe(optional),
 }) {}

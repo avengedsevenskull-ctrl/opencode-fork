@@ -158,6 +158,14 @@ Review files`,
             )
             await fs.writeFile(path.join(tmp.path, "commands", "nested", "docs.md"), "Write docs")
             await fs.writeFile(path.join(tmp.path, "commands", "empty.md"), "")
+            await fs.writeFile(
+              path.join(tmp.path, "commands", "switch.md"),
+              `---
+description: Switch provider
+arguments: [deepseek, opencode-go]
+---
+Switch to $ARGUMENTS`,
+            )
           })
 
           const command = yield* Command.Service
@@ -207,6 +215,11 @@ Review files`,
             }),
             Command.Info.make({ name: "empty" }),
             Command.Info.make({ name: "nested/docs" }),
+            Command.Info.make({
+              name: "switch",
+              description: "Switch provider",
+              arguments: ["deepseek", "opencode-go"],
+            }),
           ])
           yield* command.execute({
             name: "nested/docs",
