@@ -312,7 +312,7 @@ export type FileSystemEntry = { path: string; type: "file" | "directory" }
 
 export type FileSystemWrite = { path: string }
 
-export type CommandInfo = { name: string; description?: string }
+export type CommandInfo = { name: string; description?: string; arguments?: Array<string> }
 
 export type SkillInfo = {
   id: string
@@ -2082,6 +2082,7 @@ export type ConfigEntry =
             model?: string | { providerID: string; model: string; variant?: string }
             subagent?: boolean
             subtask?: boolean
+            arguments?: Array<string>
           }
         }
         instructions?: Array<string>

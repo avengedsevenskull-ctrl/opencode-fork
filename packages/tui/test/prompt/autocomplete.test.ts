@@ -8,6 +8,7 @@ import {
   directoryAutocompleteResultValue,
   directoryAutocompleteSearch,
   directoryRecentValue,
+  serverArgumentAutocomplete,
   slashArgumentAutocomplete,
 } from "../../src/prompt/directory-completion"
 
@@ -108,6 +109,53 @@ describe("slashArgumentAutocomplete", () => {
   test("does not complete the command token", () => {
     expect(slashArgumentAutocomplete("/cd", 3, commands, argumentAutocomplete)).toBeUndefined()
     expect(slashArgumentAutocomplete("/other ", 7, commands, argumentAutocomplete)).toBeUndefined()
+  })
+})
+
+const serverCommands = [
+  { name: "provider", arguments: ["deepseek", "opencode-go"] },
+  { name: "plain" },
+] as const
+
+describe("serverArgumentAutocomplete", () => {
+  test("offers every value after the command separator", () => {
+    expect(serverArgumentAutocomplete("/provider ", 10, serverCommands)).toEqual({
+      index: 10,
+      values: ["deepseek", "opencode-go"],
+    })
+  })
+
+  test("filters values by the typed prefix, case-insensitively", () => {
+    expect(serverArgumentAutocomplete("/provider dee", 13, serverCommands)).toEqual({
+      index: 10,
+      values: ["deepseek"],
+    })
+    expect(serverArgumentAutocomplete("/provider OPEN", 14, serverCommands)).toEqual({
+      index: 10,
+      values: ["opencode-go"],
+    })
+    expect(serverArgumentAutocomplete("/provider nope", 14, serverCommands)).toEqual({
+      index: 10,
+      values: [],
+    })
+  })
+
+  test("does not complete the command token or commands without values", () => {
+    expect(serverArgumentAutocomplete("/provider", 9, serverCommands)).toBeUndefined()
+    expect(serverArgumentAutocomplete("/plain ", 7, serverCommands)).toBeUndefined()
+    expect(serverArgumentAutocomplete("/other ", 7, serverCommands)).toBeUndefined()
+  })
+
+  test("stops once the argument is followed by whitespace", () => {
+    expect(serverArgumentAutocomplete("/provider deepseek ", 19, serverCommands)).toBeUndefined()
+  })
+
+  test("stops when the typed argument already matches the only value", () => {
+    expect(serverArgumentAutocomplete("/provider deepseek", 18, serverCommands)).toBeUndefined()
+  })
+
+  test("matches the settled check case-insensitively like the filter", () => {
+    expect(serverArgumentAutocomplete("/provider DEEPSEEK", 18, serverCommands)).toBeUndefined()
   })
 })
 

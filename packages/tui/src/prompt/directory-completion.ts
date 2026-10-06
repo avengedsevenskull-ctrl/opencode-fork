@@ -51,6 +51,28 @@ export function slashArgumentAutocomplete(
   }
 }
 
+export function serverArgumentAutocomplete(
+  value: string,
+  offset: number,
+  commands: readonly { readonly name: string; readonly arguments?: ReadonlyArray<string> }[],
+) {
+  const beforeCursor = displaySlice(value, 0, offset)
+  const head = parseSlashHead(beforeCursor, /\s/)
+  if (!head || head.end === beforeCursor.length) return
+  if (/\s/.test(head.arguments)) return
+
+  const command = commands.find((command) => command.name === head.name && command.arguments?.length)
+  if (!command) return
+
+  const query = head.arguments.toLowerCase()
+  const values = (command.arguments ?? []).filter((item) => item.toLowerCase().startsWith(query))
+  if (values.length === 1 && values[0]?.toLowerCase() === query) return
+  return {
+    index: promptOffsetWidth(beforeCursor.slice(0, head.end + 1)),
+    values,
+  }
+}
+
 export function directoryAutocompleteSearch(query: string, directory: string, home: string) {
   if (query === "~") return { directory: home, prefix: "~/", query: "" }
   if (query.startsWith("~/")) return directorySearch(query.slice(2), home, "~/")

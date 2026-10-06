@@ -25,11 +25,15 @@ import { Skill } from "@opencode/schema/skill"
 import { stringWidth } from "../../util/string-width"
 import { parseFileLineRange, stripFileLineRange } from "../../prompt/parse"
 import { moveSelection, reconcileSelectionWindow, revealSelectionOffset } from "../../ui/select-controller"
-import { directoryAutocomplete, slashArgumentAutocomplete } from "../../prompt/directory-completion"
+import {
+  directoryAutocomplete,
+  serverArgumentAutocomplete,
+  slashArgumentAutocomplete,
+} from "../../prompt/directory-completion"
 
 export type AutocompleteRef = {
   onInput: (value: string) => void
-  visible: false | "reference" | "command" | "directory"
+  visible: false | "reference" | "command" | "directory" | "argument"
   completeQueueableCommand: () => boolean
 }
 
@@ -92,6 +96,7 @@ export function Autocomplete(props: {
   const [positionTick, setPositionTick] = createSignal(0)
   const [dismissedValue, setDismissedValue] = createSignal<string>()
   const [confirming, setConfirming] = createSignal<string>()
+  const [argumentValues, setArgumentValues] = createSignal<readonly string[]>([])
 
   createEffect(() => {
     if (!store.visible) return
@@ -137,7 +142,10 @@ export function Autocomplete(props: {
 
     return props
       .input()
-      .getTextRange(store.visible === "directory" ? store.index : store.index + 1, props.input().cursorOffset)
+      .getTextRange(
+        store.visible === "directory" || store.visible === "argument" ? store.index : store.index + 1,
+        props.input().cursorOffset,
+      )
   })
 
   // filter() reads reactive props.value plus non-reactive cursor/text state.
@@ -309,7 +317,7 @@ export function Autocomplete(props: {
     insertPart(filename, part)
   }
 
-  function insertDirectory(directory: string) {
+  function insertAtTrigger(text: string) {
     const input = props.input()
     const cursorOffset = input.cursorOffset
     input.cursorOffset = store.index
@@ -317,13 +325,13 @@ export function Autocomplete(props: {
     input.cursorOffset = cursorOffset
     const end = input.logicalCursor
     input.deleteRange(start.row, start.col, end.row, end.col)
-    input.insertText(directory)
+    input.insertText(text)
   }
 
   const [files] = createResource(
     () => ({ query: search(), location: location.current, visible: store.visible }),
     async (input, info): Promise<AutocompleteResults> => {
-      if (!input.visible || input.visible === "command")
+      if (!input.visible || input.visible === "command" || input.visible === "argument")
         return { options: [], failed: false, mode: input.visible, query: input.query, resolved: true }
       if (referenceMatch())
         return { options: [], failed: false, mode: input.visible, query: input.query, resolved: true }
@@ -350,7 +358,7 @@ export function Autocomplete(props: {
             isDirectory: true,
             path: item.value,
             absolute: item.absolute,
-            onSelect: () => insertDirectory(item.value),
+            onSelect: () => insertAtTrigger(item.value),
           })),
           failed: false,
           mode: input.visible,
@@ -512,7 +520,7 @@ export function Autocomplete(props: {
       return {
         ...item,
         display: Locale.truncateMiddle(item.display, width),
-        onSelect: item.onSelect ?? (value ? () => insertDirectory(value) : undefined),
+        onSelect: item.onSelect ?? (value ? () => insertAtTrigger(value) : undefined),
       }
     })
   })
@@ -524,6 +532,14 @@ export function Autocomplete(props: {
     const referenceAliasesValue = referenceAliases()
     const commandsValue = commands()
     const searchValue = search()
+
+    if (store.visible === "argument") {
+      return argumentValues().map((value): AutocompleteOption => ({
+        display: value,
+        value,
+        onSelect: () => insertAtTrigger(value),
+      }))
+    }
 
     if (store.visible === "directory") {
       const supplemental = supplementalDirectoryOptions()
@@ -648,7 +664,7 @@ export function Autocomplete(props: {
     const selectedPath = displayText.startsWith("@") ? displayText.slice(1) : displayText
 
     if (store.visible === "directory") {
-      insertDirectory(selectedPath.endsWith(path.sep) ? selectedPath : selectedPath + path.sep)
+      insertAtTrigger(selectedPath.endsWith(path.sep) ? selectedPath : selectedPath + path.sep)
       setStore("selected", 0)
       return
     }
@@ -787,6 +803,24 @@ export function Autocomplete(props: {
           return
         }
 
+        const serverArgument = serverArgumentAutocomplete(
+          value,
+          offset,
+          data.location.command.list(location.current) ?? [],
+        )
+        if (serverArgument) {
+          setArgumentValues(serverArgument.values)
+          show("argument", serverArgument.index)
+          return
+        }
+
+        // The helper returns nothing when the typed argument is already settled
+        // (exact match) or can no longer be completed; close a lingering popup.
+        if (store.visible === "argument") {
+          hide()
+          return
+        }
+
         if (store.visible) {
           if (
             // Typed text before the trigger
@@ -832,6 +866,7 @@ export function Autocomplete(props: {
   const emptyMessage = createMemo(() => {
     const fileSearch = visibleFiles()
     if (store.visible === "command") return "No matching commands"
+    if (store.visible === "argument") return "No matching arguments"
     if (store.visible === "directory") {
       if (files.loading) return "Searching…"
       if (fileSearch.failed) return "Could not search directories. Keep typing to try again."

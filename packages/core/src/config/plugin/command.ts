@@ -76,6 +76,7 @@ export const Plugin = define({
           editor.add({
             name,
             description: command.description,
+            arguments: command.arguments,
             execute: (input) =>
               Effect.gen(function* () {
                 const agent = command.agent === undefined ? undefined : Agent.ID.make(command.agent)
