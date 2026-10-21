@@ -1,9 +1,11 @@
 import { expect, test } from "bun:test"
 import { createAppFixture } from "./fixture/app"
+import { copyPlugin, tmpdir } from "./fixture/fixture"
 import { directory, json } from "./fixture/tui-client"
-import { tmpdir } from "./fixture/fixture"
 
+const launch = "/tmp/opencode/launch"
 const location = { directory, project: { id: "project", directory, canonical: directory } }
+const launchLocation = { directory: launch, project: { id: "project", directory: launch, canonical: launch } }
 const session = {
   id: "ses_clear",
   title: "Session to clear",
@@ -16,14 +18,15 @@ const session = {
   time: { created: 0, updated: 0 },
 }
 
-function render(state: string) {
+function render(state: string, plugin: string) {
   return createAppFixture({
     state,
     args: { sessionID: session.id },
-    config: { animations: false, tabs: { mode: "on" } },
+    config: { animations: false, tabs: { mode: "on" }, plugins: [plugin] },
     fetch: (url) => {
-      if (url.pathname === "/api/fs/list") return json({ location, data: [] })
-      if (url.pathname === "/api/location") return json(location)
+      if (url.pathname === "/api/fs/list") return json({ location: launchLocation, data: [] })
+      if (url.pathname === "/api/location")
+        return json(url.searchParams.has("location[directory]") ? location : launchLocation)
       if (url.pathname === "/api/session") return json({ data: [session], cursor: {} })
       if (url.pathname === `/api/session/${session.id}`) return json({ data: session })
       if (/^\/api\/session\/[^/]+\/(message|inbox|permission)$/.test(url.pathname))
@@ -40,28 +43,33 @@ function render(state: string) {
   })
 }
 
-test("/clear replaces the active session tab", async () => {
+test("/clear replaces the active session tab and inherits its location", async () => {
   await using state = await tmpdir()
-  await using setup = await render(state.path)
+  await using plugin = await copyPlugin("route-probe")
+  await using setup = await render(state.path, plugin.directory)
 
   await setup.waitForFrame((frame) => frame.includes("Session to clear"))
   await setup.mockInput.typeText("/clear")
   setup.mockInput.pressEnter()
-  const frame = await setup.waitForFrame((frame) => !frame.includes("Session to clear"))
+  const frame = await setup.waitForFrame(
+    (frame) => !frame.includes("Session to clear") && frame.includes(`route:${directory}`),
+  )
 
-  expect(frame).not.toContain("Session to clear")
-})
+  expect(frame).not.toContain(`route:${launch}`)
+}, 15_000)
 
-test("/new keeps the active session tab", async () => {
+test("/new keeps the active session tab and follows session.new_location", async () => {
   await using state = await tmpdir()
-  await using setup = await render(state.path)
+  await using plugin = await copyPlugin("route-probe")
+  await using setup = await render(state.path, plugin.directory)
 
   await setup.waitForFrame((frame) => frame.includes("Session to clear"))
   await setup.mockInput.typeText("/new")
   setup.mockInput.pressEnter()
   const frame = await setup.waitForFrame(
-    (frame) => frame.includes("New session") && frame.includes("Session to clear"),
+    (frame) => frame.includes("New session") && frame.includes("Session to clear") && frame.includes("route:"),
   )
 
   expect(frame).toContain("Session to clear")
-})
+  expect(frame).toContain(`route:${launch}`)
+}, 15_000)

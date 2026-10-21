@@ -789,8 +789,9 @@ function App() {
           sessionTabs.close()
           route.navigate({
             type: "home",
+            // /clear deliberately ignores session.new_location so it stays in the session's directory.
             location: newSessionLocation(
-              config.data.session.new_location,
+              "inherit",
               data.location.default().directory,
               current,
               location.error?.location,
