@@ -226,6 +226,35 @@ export const { use: useSessionTabs, provider: SessionTabsProvider } = createSimp
       ),
     )
 
+    // The panel is the working set, not a visit log. A session that starts working anywhere — another
+    // client's window, a run started before this client connected — joins the tabs, so every active
+    // session is visible and one click away. Subagents resolve to their parent's tab, and a tab the
+    // user closed stays closed until they open it again.
+    createEffect(() => {
+      if (!enabled()) return
+      if (client.connection.status() !== "connected") return
+      const running = data.session.active()
+      if (running.length === 0) return
+      const present = new Set(state().tabs.map((tab) => tab.sessionID))
+      for (const sessionID of running) {
+        if (sessionID === "dummy") continue
+        // A status event can arrive before the session's own info; the read that follows re-runs
+        // this effect with the parent link known, so a subagent never opens a tab of its own.
+        if (!data.session.get(sessionID)) {
+          void data.session.sync(sessionID).catch(() => {})
+          continue
+        }
+        const session = root(sessionID)
+        if (session !== sessionID) continue
+        if (present.has(session) || cancelledTabs.has(session)) continue
+        present.add(session)
+        update((draft) => {
+          if (draft.tabs.some((tab) => tab.sessionID === session)) return
+          draft.tabs = openSessionTab(draft.tabs, { sessionID: session, title: title(session) })
+        })
+      }
+    })
+
     // Viewed state is server-global, so acknowledgement runs even with tabs disabled: other
     // clients rely on this client reporting what its user has seen.
     const acknowledged = new Map<string, number>()

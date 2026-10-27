@@ -38,6 +38,7 @@ async function renderSessionTabs(
     sessionParents?: Record<string, string>
     sessionTimes?: Record<string, { idle?: number; viewed?: number }>
     sessionOutcomes?: Record<string, "succeeded" | "failed" | "interrupted">
+    active?: string[]
     newLocation?: "launch" | "inherit"
     launchDirectory?: string
     tabsEnabled?: boolean
@@ -73,6 +74,10 @@ async function renderSessionTabs(
     Object.entries(options?.sessionTimes ?? {}).map(([sessionID, time]) => [sessionID, { ...time }]),
   )
   const calls = createFetch(async (url, request) => {
+    if (url.pathname === "/api/session/active") {
+      const active = options?.active ?? []
+      return json({ data: Object.fromEntries(active.map((sessionID) => [sessionID, { type: "running" }])) })
+    }
     if (url.pathname === "/api/location") {
       const requested = url.searchParams.get("location[directory]") ?? directory
       locations.push(requested)
@@ -276,6 +281,70 @@ test("opens a background tab without changing the current session", async () => 
     expect(setup.tabs.current()).toBe("first")
     setup.tabs.move("background", 0)
     await wait(() => setup.tabs.tabs()[0]?.sessionID === "background")
+  } finally {
+    await setup.destroy()
+  }
+})
+
+test("adopts a session that is active on the server into the panel", async () => {
+  const setup = await renderSessionTabs("first", { home: true, active: ["worker"] })
+
+  try {
+    await wait(() => setup.tabs.tabs().some((tab) => tab.sessionID === "worker"))
+    expect(setup.tabs.current()).toBeUndefined()
+    await wait(() => setup.data.session.get("worker") !== undefined)
+    expect(setup.tabs.tabs().map((tab) => tab.sessionID)).toEqual(["worker"])
+  } finally {
+    await setup.destroy()
+  }
+})
+
+test("a subagent run never opens a tab of its own", async () => {
+  const setup = await renderSessionTabs("first", {
+    home: true,
+    active: ["helper"],
+    sessionParents: { helper: "first" },
+  })
+
+  try {
+    await wait(() => setup.data.session.get("helper") !== undefined)
+    await Bun.sleep(50)
+    expect(setup.tabs.tabs().some((tab) => tab.sessionID === "helper")).toBe(false)
+    expect(setup.tabs.tabs().some((tab) => tab.sessionID === "first")).toBe(false)
+  } finally {
+    await setup.destroy()
+  }
+})
+
+test("a closed session is not re-adopted for the same run", async () => {
+  const setup = await renderSessionTabs("first", { home: true, active: ["worker"] })
+
+  try {
+    await wait(() => setup.tabs.tabs().some((tab) => tab.sessionID === "worker"))
+    setup.tabs.close("worker")
+    await wait(() => !setup.tabs.tabs().some((tab) => tab.sessionID === "worker"))
+    setup.emit({
+      id: "evt_worker_started",
+      created: Date.now(),
+      type: "session.execution.started",
+      durable: { aggregateID: "worker", seq: 1, version: 1 },
+      data: { sessionID: "worker" },
+    })
+    await Bun.sleep(50)
+    expect(setup.tabs.tabs().some((tab) => tab.sessionID === "worker")).toBe(false)
+  } finally {
+    await setup.destroy()
+  }
+})
+
+test("does not adopt active sessions when tabs are disabled", async () => {
+  const setup = await renderSessionTabs("first", { home: true, active: ["worker"], tabsEnabled: false })
+
+  try {
+    // The active snapshot is fetched on connect, so a settled pause is enough to prove it was ignored.
+    await Bun.sleep(100)
+    expect(setup.data.session.active()).toEqual(["worker"])
+    expect(setup.tabs.tabs()).toEqual([])
   } finally {
     await setup.destroy()
   }
