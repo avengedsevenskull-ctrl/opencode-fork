@@ -3411,6 +3411,10 @@ export type SessionRemoveInput = { readonly sessionID: { readonly sessionID: str
 
 export type SessionRemoveOutput = void
 
+export type SessionClearInput = { readonly sessionID: { readonly sessionID: string }["sessionID"] }
+
+export type SessionClearOutput = void
+
 export type SessionForkInput = {
   readonly sessionID: { readonly sessionID: string }["sessionID"]
   readonly before?: { readonly before?: string | undefined }["before"]

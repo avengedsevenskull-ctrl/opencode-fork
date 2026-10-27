@@ -31,6 +31,8 @@ import type {
   SessionGetOutput,
   SessionRemoveInput,
   SessionRemoveOutput,
+  SessionClearInput,
+  SessionClearOutput,
   SessionForkInput,
   SessionForkOutput,
   SessionSwitchAgentInput,
@@ -652,6 +654,17 @@ export function make(options: ClientOptions) {
           {
             method: "DELETE",
             path: `/api/session/${encodeURIComponent(input.sessionID)}`,
+            successStatus: 204,
+            declaredStatuses: [400, 401, 404],
+            empty: true,
+          },
+          requestOptions,
+        ),
+      clear: (input: SessionClearInput, requestOptions?: RequestOptions) =>
+        request<SessionClearOutput>(
+          {
+            method: "POST",
+            path: `/api/session/${encodeURIComponent(input.sessionID)}/clear`,
             successStatus: 204,
             declaredStatuses: [400, 401, 404],
             empty: true,

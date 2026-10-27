@@ -19,11 +19,16 @@ const session = {
 }
 
 function render(state: string, plugin: string) {
+  const cleared = Promise.withResolvers<string>()
   return createAppFixture({
     state,
     args: { sessionID: session.id },
     config: { animations: false, tabs: { mode: "on" }, plugins: [plugin] },
-    fetch: (url) => {
+    fetch: (url, request) => {
+      if (url.pathname === `/api/session/${session.id}/clear`) {
+        cleared.resolve(request.method)
+        return new Response(null, { status: 204 })
+      }
       if (url.pathname === "/api/fs/list") return json({ location: launchLocation, data: [] })
       if (url.pathname === "/api/location")
         return json(url.searchParams.has("location[directory]") ? location : launchLocation)
@@ -40,7 +45,7 @@ function render(state: string, plugin: string) {
           data: [{ id: "model", providerID: "provider", name: "Model", variants: [] }],
         })
     },
-  })
+  }).then((setup) => Object.assign(setup, { cleared: cleared.promise }))
 }
 
 test("/clear replaces the active session tab and inherits its location", async () => {
@@ -55,6 +60,7 @@ test("/clear replaces the active session tab and inherits its location", async (
     (frame) => !frame.includes("Session to clear") && frame.includes(`route:${directory}`),
   )
 
+  expect(await setup.cleared).toBe("POST")
   expect(frame).not.toContain(`route:${launch}`)
 }, 15_000)
 
