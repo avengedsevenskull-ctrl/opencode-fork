@@ -132,6 +132,8 @@ export interface Interface {
   readonly background: (id: string) => Effect.Effect<Info | undefined>
   readonly backgroundAll: (input: BackgroundAllInput) => Effect.Effect<Info[]>
   readonly cancel: (id: string) => Effect.Effect<Info | undefined>
+  /** Cancel every running job owned by a Session: its shell jobs, its subagent jobs, and a job keyed by its own ID. */
+  readonly cancelSession: (sessionID: SessionSchema.ID) => Effect.Effect<void>
   readonly pendingBackground: Effect.Effect<readonly Background[]>
   readonly runningBackground: Effect.Effect<readonly Recovery[]>
   readonly completeBackground: (notificationID: SessionMessage.ID) => Effect.Effect<void>
@@ -439,6 +441,20 @@ export const make = Effect.gen(function* () {
     return result.info
   })
 
+  const cancelSession: Interface["cancelSession"] = Effect.fn("Job.cancelSession")(function* (sessionID) {
+    const running = yield* SynchronizedRef.get(state.jobs)
+    const ids = [...running.entries()]
+      .filter(
+        ([id, job]) =>
+          job.info.status === "running" &&
+          (id === sessionID ||
+            (job.recovery?.kind === "shell" && job.recovery.sessionID === sessionID) ||
+            (job.recovery?.kind === "subagent" && job.recovery.parentSessionID === sessionID)),
+      )
+      .map(([id]) => id)
+    yield* Effect.forEach(ids, (id) => cancel(id), { discard: true })
+  })
+
   const pendingBackground: Interface["pendingBackground"] = Effect.gen(function* () {
     const recovered: Background[] = []
     let after: string | undefined
@@ -480,6 +496,7 @@ export const make = Effect.gen(function* () {
     background,
     backgroundAll,
     cancel,
+    cancelSession,
     pendingBackground,
     runningBackground,
     completeBackground,

@@ -786,6 +786,10 @@ function App() {
             route.data.type === "session"
               ? (data.session.get(route.data.sessionID)?.location ?? location.ref)
               : undefined
+          // Release the session's runtime resources (running turn, background jobs, terminals, transport)
+          // before leaving it. The session and its messages are retained.
+          const sessionID = route.data.type === "session" ? route.data.sessionID : undefined
+          if (sessionID) void client.api.session.clear({ sessionID }).catch(toast.error)
           sessionTabs.close()
           route.navigate({
             type: "home",

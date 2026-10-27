@@ -328,6 +328,46 @@ describe("Job", () => {
     }),
   )
 
+  it.live("cancels only the work a session owns", () =>
+    Effect.gen(function* () {
+      const jobs = yield* Job.Service
+      const owner = SessionSchema.ID.make("ses_cancel_owner")
+      const other = SessionSchema.ID.make("ses_cancel_other")
+      const child = SessionSchema.ID.make("ses_cancel_child")
+      const latch = yield* Deferred.make<void>()
+      const shell = yield* jobs.start({
+        id: "job_cancel_owned_shell",
+        type: "shell",
+        recovery: { kind: "shell", sessionID: owner, shellID: "shell_owned", command: "sleep" },
+        run: Deferred.await(latch).pipe(Effect.as("done")),
+      })
+      const subagent = yield* jobs.start({
+        id: child,
+        type: "subagent",
+        recovery: {
+          kind: "subagent",
+          parentSessionID: owner,
+          childSessionID: child,
+          agent: "build",
+          description: "child",
+        },
+        run: Deferred.await(latch).pipe(Effect.as("done")),
+      })
+      const foreign = yield* jobs.start({
+        id: "job_cancel_foreign_shell",
+        type: "shell",
+        recovery: { kind: "shell", sessionID: other, shellID: "shell_foreign", command: "sleep" },
+        run: Deferred.await(latch).pipe(Effect.as("done")),
+      })
+
+      yield* jobs.cancelSession(owner)
+
+      expect((yield* jobs.get(shell.id))?.status).toBe("cancelled")
+      expect((yield* jobs.get(subagent.id))?.status).toBe("cancelled")
+      expect((yield* jobs.get(foreign.id))?.status).toBe("running")
+    }),
+  )
+
   it.live("retains terminal errors for recovery until notification acknowledgment", () =>
     Effect.gen(function* () {
       const jobs = yield* Job.Service

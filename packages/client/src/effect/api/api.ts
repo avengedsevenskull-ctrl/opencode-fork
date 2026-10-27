@@ -237,6 +237,10 @@ export type SessionRemoveInput = { readonly sessionID: Session.ID }
 export type SessionRemoveOutput = void
 export type SessionRemoveOperation<E = never> = (input: SessionRemoveInput) => Effect.Effect<SessionRemoveOutput, E>
 
+export type SessionClearInput = { readonly sessionID: Session.ID }
+export type SessionClearOutput = void
+export type SessionClearOperation<E = never> = (input: SessionClearInput) => Effect.Effect<SessionClearOutput, E>
+
 export type SessionForkInput = { readonly sessionID: Session.ID; readonly before?: SessionMessage.ID | undefined }
 export type SessionForkOutput = Session.Info
 export type SessionForkOperation<E = never> = (input: SessionForkInput) => Effect.Effect<SessionForkOutput, E>
@@ -1321,6 +1325,7 @@ export interface SessionApi<E = never> {
   readonly active: SessionActiveOperation<E>
   readonly get: SessionGetOperation<E>
   readonly remove: SessionRemoveOperation<E>
+  readonly clear: SessionClearOperation<E>
   readonly fork: SessionForkOperation<E>
   readonly switchAgent: SessionSwitchAgentOperation<E>
   readonly switchModel: SessionSwitchModelOperation<E>

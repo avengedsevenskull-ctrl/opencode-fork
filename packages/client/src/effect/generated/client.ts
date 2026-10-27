@@ -37,6 +37,8 @@ import type {
   SessionGetOutput,
   SessionRemoveInput,
   SessionRemoveOutput,
+  SessionClearInput,
+  SessionClearOutput,
   SessionForkInput,
   SessionForkOutput,
   SessionSwitchAgentInput,
@@ -466,6 +468,11 @@ const EndpointSessionRemove = (raw: RawClient["server.session"]) => (input: Sess
     raw["session.remove"]({ params: { sessionID: input["sessionID"] } }).pipe(Effect.mapError(mapClientError)),
   )
 
+const EndpointSessionClear = (raw: RawClient["server.session"]) => (input: SessionClearInput) =>
+  preserveEffect<SessionClearOutput>()(
+    raw["session.clear"]({ params: { sessionID: input["sessionID"] } }).pipe(Effect.mapError(mapClientError)),
+  )
+
 const EndpointSessionFork = (raw: RawClient["server.session"]) => (input: SessionForkInput) =>
   preserveEffect<SessionForkOutput>()(
     raw["session.fork"]({ params: { sessionID: input["sessionID"] }, payload: { before: input["before"] } }).pipe(
@@ -791,6 +798,7 @@ const adaptGroupSession = (raw: RawClient["server.session"]) => ({
   active: EndpointSessionActive(raw),
   get: EndpointSessionGet(raw),
   remove: EndpointSessionRemove(raw),
+  clear: EndpointSessionClear(raw),
   fork: EndpointSessionFork(raw),
   switchAgent: EndpointSessionSwitchAgent(raw),
   switchModel: EndpointSessionSwitchModel(raw),

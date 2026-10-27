@@ -246,6 +246,20 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S, FormI ext
       ),
     )
     .add(
+      HttpApiEndpoint.post("session.clear", "/api/session/:sessionID/clear", {
+        params: { sessionID: Session.ID },
+        success: HttpApiSchema.NoContent,
+        error: SessionNotFoundError,
+      }).annotateMerge(
+        OpenApi.annotations({
+          identifier: "session.clear",
+          summary: "Clear session runtime",
+          description:
+            "Interrupt running work and release the session's runtime resources (background jobs, terminals, transport, environment). The session and its messages are retained.",
+        }),
+      ),
+    )
+    .add(
       HttpApiEndpoint.post("session.fork", "/api/session/:sessionID/fork", {
         params: { sessionID: Session.ID },
         payload: Schema.Struct({ before: SessionMessage.ID.pipe(Schema.optional) }),

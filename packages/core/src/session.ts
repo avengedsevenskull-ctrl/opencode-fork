@@ -139,6 +139,8 @@ export interface Interface {
   }) => Effect.Effect<SessionEnvironment.Variables | undefined, NotFoundError>
   readonly view: (input: { sessionID: SessionSchema.ID; idle: number }) => Effect.Effect<void, NotFoundError>
   readonly remove: (sessionID: SessionSchema.ID) => Effect.Effect<void, NotFoundError>
+  /** Release runtime resources for a session and its children without deleting the session or its messages. */
+  readonly clear: (sessionID: SessionSchema.ID) => Effect.Effect<void, NotFoundError>
   readonly messages: (
     input: SessionStore.MessagesInput,
   ) => Effect.Effect<SessionMessage.Info[], NotFoundError | MessageDecodeError>
@@ -385,6 +387,16 @@ const layer = Layer.effect(
         yield* environments.clear(sessionID)
         yield* bus.publish(SessionEvent.Deleted, { sessionID })
         yield* bus.remove(sessionID)
+      }),
+      clear: Effect.fn("Session.clear")(function* (sessionID) {
+        yield* result.get(sessionID)
+        yield* execution.interrupt(sessionID)
+        yield* execution.awaitIdle(sessionID)
+        yield* transport.close(sessionID)
+        yield* jobs.cancelSession(sessionID)
+        yield* environments.clear(sessionID)
+        const children = yield* store.list({ parentID: sessionID })
+        yield* Effect.forEach(children, (child) => result.clear(child.id), { concurrency: 1, discard: true })
       }),
       list: Effect.fn("Session.list")(function* (input = {}) {
         const filter =

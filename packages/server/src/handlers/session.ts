@@ -3,6 +3,7 @@ import { SessionStats } from "@opencode/core/session/stats"
 import { SessionTitle } from "@opencode/core/session/title"
 import { SessionTransfer } from "@opencode/core/session/transfer"
 import { InstructionEntry } from "@opencode/core/session/instruction-entry"
+import { PersistentPty } from "@opencode/core/persistent-pty"
 import { Form } from "@opencode/core/form"
 import { DateTime, Effect, Stream } from "effect"
 import { HttpApiBuilder, HttpApiSchema } from "effect/http-api"
@@ -33,6 +34,7 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
   Effect.gen(function* () {
     const session = yield* Session.Service
     const transfer = yield* SessionTransfer.Service
+    const pty = yield* PersistentPty.Service
     const requireOwnedForm = Effect.fnUntraced(function* (sessionID: Form.Info["sessionID"], formID: Form.ID) {
       const form = yield* Form.Service
       const info = yield* form.get(formID).pipe(Effect.catchTag("Form.NotFoundError", () => missingForm(formID)))
@@ -177,6 +179,25 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
         "session.remove",
         Effect.fn(function* (ctx) {
           yield* session.remove(ctx.params.sessionID).pipe(Effect.catchTag("Session.NotFoundError", missingSession))
+          return HttpApiSchema.NoContent.make()
+        }),
+      )
+      .handle(
+        "session.clear",
+        Effect.fn(function* (ctx) {
+          yield* session
+            .clear(ctx.params.sessionID)
+            .pipe(Effect.catchTag("Session.NotFoundError", missingSession))
+          yield* pty
+            .list(ctx.params.sessionID)
+            .pipe(
+              Effect.flatMap((terminals) =>
+                Effect.forEach(terminals, (terminal) => pty.remove(terminal.id).pipe(Effect.ignore), {
+                  discard: true,
+                }),
+              ),
+              Effect.catchTag("PersistentPty.UnavailableError", () => Effect.void),
+            )
           return HttpApiSchema.NoContent.make()
         }),
       )
